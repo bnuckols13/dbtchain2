@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breaking Down the Chain — DBT Distress Tolerance</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary-teal: #5EEAD4;
+            --deep-teal: #14B8A6;
+            --soft-purple: #C084FC;
+            --gentle-lavender: #B19CD9;
+            --warm-rose: #FDA4AF;
+            --calm-blue: #93C5FD;
+            --sage: #87A878;
+            --midnight: #1E293B;
+            --slate: #475569;
+            --warm-gray: #6B6B6B;
+            --pearl: #F8FAFC;
+            --gradient-calm: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-nature: linear-gradient(135deg, #5EEAD4 0%, #93C5FD 100%);
+            --gradient-warm: linear-gradient(135deg, #FDA4AF 0%, #C084FC 100%);
+            --gradient-earth: linear-gradient(135deg, #87A878 0%, #7BA7BC 100%);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%);
+            min-height: 100vh;
+            color: var(--midnight);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        .bg-shape {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.22;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-1 { width: 380px; height: 380px; background: var(--calm-blue); top: -130px; right: -100px; animation: float 26s infinite ease-in-out; }
+        .bg-2 { width: 420px; height: 420px; background: var(--primary-teal); bottom: -160px; left: -160px; animation: float 22s infinite ease-in-out; animation-delay: -7s; }
+        .bg-3 { width: 260px; height: 260px; background: var(--warm-rose); top: 45%; right: 8%; animation: float 18s infinite ease-in-out; animation-delay: -13s; }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0,0) scale(1); }
+            33% { transform: translate(25px,-25px) scale(1.08); }
+            66% { transform: translate(-18px,18px) scale(0.93); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(22px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            animation: fadeIn 0.8s ease both;
+        }
+
+        .header-eyebrow {
+            display: inline-block;
+            background: rgba(94, 234, 212, 0.15);
+            color: var(--deep-teal);
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 0.4rem 1.2rem;
+            border-radius: 50px;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(94, 234, 212, 0.3);
+        }
+
+        h1 {
+            font-size: 2.6rem;
+            font-weight: 800;
+            background: var(--gradient-calm);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1.2;
+            margin-bottom: 0.6rem;
+        }
+
+        .subtitle {
+            color: var(--warm-gray);
+            font-size: 1.1rem;
+        }
+
+        .nav-pills {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .nav-pill {
+            padding: 0.65rem 1.6rem;
+            border-radius: 50px;
+            background: white;
+            border: 2px solid transparent;
+            color: var(--slate);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.07);
+        }
+
+        .nav-pill:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.11); }
+        .nav-pill.active { background: var(--gradient-nature); color: white; box-shadow: 0 4px 18px rgba(94,234,212,0.35); }
+
+        .phase-track {
+            display: flex;
+            gap: 0.4rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .phase-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: rgba(94,234,212,0.25);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .phase-dot.active { background: var(--deep-teal); transform: scale(1.3); }
+        .phase-dot.done { background: rgba(94,234,212,0.6); }
+
+        .page { display: none; animation: fadeIn 0.55s ease both; }
+        .page.active { display: block; }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.07);
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: var(--gradient-nature);
+        }
+        .card.warm::before { background: var(--gradient-warm); }
+        .card.earth::before { background: var(--gradient-earth); }
+        .card.calm::before { background: var(--gradient-calm); }
+
+        .card h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--midnight);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .icon-circle {
+            width: 40px; height: 40px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            color: white;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+        .icon-nature { background: var(--gradient-nature); }
+        .icon-warm { background: var(--gradient-warm); }
+        .icon-earth { background: var(--gradient-earth); }
+        .icon-calm { background: var(--gradient-calm); }
+
+        .timing-badge {
+            font-size: 0.78rem;
+            font-weight: 600;
+            background: rgba(94,234,212,0.12);
+            color: var(--deep-teal);
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            border: 1px solid rgba(94,234,212,0.25);
+            margin-left: auto;
+        }
+
+        /* RBT */
+        .rbt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.25rem;
+            margin: 1.5rem 0;
+        }
+        .rbt-card {
+            padding: 1.5rem;
+            border-radius: 16px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .rbt-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .rbt-rose { background: rgba(253,164,175,0.1); border-color: rgba(253,164,175,0.4); }
+        .rbt-bud { background: rgba(135,168,120,0.1); border-color: rgba(135,168,120,0.4); }
+        .rbt-thorn { background: rgba(192,132,252,0.1); border-color: rgba(192,132,252,0.4); }
+        .rbt-symbol { font-size: 2rem; margin-bottom: 0.5rem; display: block; }
+        .rbt-label { font-size: 1.1rem; font-weight: 700; color: var(--midnight); margin-bottom: 0.4rem; }
+        .rbt-desc { font-size: 0.9rem; color: var(--slate); }
+
+        .topic-question {
+            background: linear-gradient(135deg, rgba(102,126,234,0.06) 0%, rgba(118,75,162,0.06) 100%);
+            border-left: 4px solid;
+            border-image: var(--gradient-calm) 1;
+            padding: 1.25rem 1.5rem;
+            border-radius: 0 12px 12px 0;
+            margin-top: 1.5rem;
+        }
+        .topic-question .tq-label {
+            font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--slate); margin-bottom: 0.5rem;
+        }
+        .topic-question p { color: var(--midnight); font-size: 1.05rem; font-style: italic; }
+
+        .pass-reminder {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            background: rgba(94,234,212,0.08);
+            border: 1px solid rgba(94,234,212,0.25);
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            margin-top: 1.25rem;
+            font-size: 0.92rem; color: var(--slate);
+        }
+        .pass-reminder .sym { color: var(--deep-teal); font-size: 1.1rem; flex-shrink: 0; margin-top: 0.1rem; }
+
+        /* Chain links visual */
+        .chain-visual {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: rgba(94,234,212,0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(94,234,212,0.15);
+        }
+
+        .chain-link {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .chain-link:hover .link-bubble { transform: scale(1.08); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+        .chain-link.active-link .link-bubble { border-color: var(--deep-teal); box-shadow: 0 0 0 3px rgba(94,234,212,0.25); }
+
+        .link-bubble {
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            border: 2.5px solid rgba(94,234,212,0.3);
+            background: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.07);
+        }
+
+        .link-label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--slate);
+            margin-top: 0.4rem;
+            text-align: center;
+            max-width: 72px;
+            line-height: 1.3;
+        }
+
+        .chain-arrow {
+            font-size: 1.2rem;
+            color: rgba(94,234,212,0.6);
+            margin: 0 0.2rem;
+            margin-bottom: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .link-detail-box {
+            background: linear-gradient(135deg, rgba(94,234,212,0.06) 0%, rgba(147,197,253,0.06) 100%);
+            border: 2px solid rgba(94,234,212,0.25);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1rem;
+            animation: slideUp 0.3s ease both;
+        }
+        .link-detail-box h4 { color: var(--deep-teal); margin-bottom: 0.5rem; }
+        .link-detail-box p { color: var(--slate); font-size: 0.95rem; }
+        .link-detail-box .teen-example {
+            margin-top: 0.75rem;
+            background: white;
+            border-radius: 10px;
+            padding: 0.85rem 1rem;
+            font-size: 0.92rem;
+            color: var(--midnight);
+            border-left: 3px solid var(--primary-teal);
+        }
+
+        /* Psych expandable cards */
+        .psych-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+        }
+        .psych-card {
+            background: var(--pearl);
+            border-radius: 16px;
+            border: 1.5px solid rgba(94,234,212,0.18);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .psych-card:hover { border-color: var(--primary-teal); box-shadow: 0 6px 25px rgba(94,234,212,0.15); }
+        .psych-header {
+            padding: 1.25rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            user-select: none;
+        }
+        .psych-header-left { display: flex; align-items: center; gap: 0.75rem; }
+        .psych-symbol {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; flex-shrink: 0;
+        }
+        .psych-symbol.teal { background: rgba(94,234,212,0.15); color: var(--deep-teal); }
+        .psych-symbol.purple { background: rgba(192,132,252,0.15); color: #9333ea; }
+        .psych-symbol.rose { background: rgba(253,164,175,0.2); color: #e11d48; }
+        .psych-symbol.sage { background: rgba(135,168,120,0.2); color: #4a7c59; }
+        .psych-symbol.blue { background: rgba(147,197,253,0.2); color: #2563eb; }
+        .psych-title { font-weight: 700; font-size: 1rem; color: var(--midnight); }
+        .psych-toggle {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: rgba(94,234,212,0.12);
+            border: none; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--deep-teal); font-size: 1rem;
+            transition: all 0.3s ease; flex-shrink: 0;
+        }
+        .psych-toggle.open { background: var(--deep-teal); color: white; transform: rotate(45deg); }
+        .psych-body {
+            display: none;
+            padding: 0 1.5rem 1.5rem;
+            color: var(--slate); font-size: 0.95rem; line-height: 1.7;
+            animation: slideUp 0.3s ease both;
+        }
+        .psych-body.open { display: block; }
+        .psych-body ul { list-style: none; margin-top: 0.75rem; }
+        .psych-body ul li {
+            padding: 0.4rem 0 0.4rem 1.25rem;
+            position: relative;
+        }
+        .psych-body ul li::before {
+            content: '◆'; position: absolute; left: 0;
+            color: var(--primary-teal); font-size: 0.6rem; top: 0.65rem;
+        }
+
+        /* Discussion */
+        .discussion-stack { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.25rem; }
+        .disc-question {
+            background: linear-gradient(135deg, rgba(253,164,175,0.06) 0%, rgba(192,132,252,0.06) 100%);
+            border: 1.5px solid rgba(192,132,252,0.2);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .disc-question:hover { border-color: rgba(192,132,252,0.4); transform: translateX(4px); }
+        .disc-q-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9333ea; margin-bottom: 0.4rem; }
+        .disc-q-text { color: var(--midnight); font-size: 1rem; font-weight: 500; }
+
+        /* Scenario cards */
+        .scenario-nav {
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 1rem;
+        }
+
+        /* Chain builder */
+        .chain-builder { margin-top: 1.5rem; }
+        .builder-step { margin-bottom: 1.25rem; }
+        .builder-label {
+            font-weight: 600; color: var(--midnight);
+            margin-bottom: 0.5rem; font-size: 0.95rem;
+            display: flex; align-items: center; gap: 0.6rem;
+        }
+        .step-badge {
+            width: 26px; height: 26px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+        }
+        .step-badge.s1 { background: linear-gradient(135deg, #FDA4AF, #f43f5e); }
+        .step-badge.s2 { background: linear-gradient(135deg, #C084FC, #9333ea); }
+        .step-badge.s3 { background: linear-gradient(135deg, #93C5FD, #3b82f6); }
+        .step-badge.s4 { background: linear-gradient(135deg, #5EEAD4, #14B8A6); }
+        .step-badge.s5 { background: linear-gradient(135deg, #87A878, #4a7c59); }
+
+        textarea, input, select {
+            width: 100%; padding: 0.9rem 1rem;
+            border: 2px solid rgba(94,234,212,0.25);
+            border-radius: 12px;
+            font-size: 0.97rem; font-family: inherit;
+            background: white; color: var(--midnight);
+            transition: all 0.3s ease; resize: vertical;
+        }
+        textarea:focus, input:focus, select:focus {
+            outline: none; border-color: var(--primary-teal);
+            box-shadow: 0 0 0 3px rgba(94,234,212,0.1);
+        }
+        textarea { min-height: 85px; }
+
+        .btn {
+            padding: 0.75rem 2rem;
+            background: var(--gradient-nature);
+            color: white; border: none;
+            border-radius: 50px; font-size: 0.97rem; font-weight: 600;
+            cursor: pointer; transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(94,234,212,0.3);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(94,234,212,0.42); }
+        .btn-secondary {
+            background: white; color: var(--deep-teal);
+            border: 2px solid var(--primary-teal);
+            box-shadow: none; margin-left: 0.75rem;
+        }
+        .btn-secondary:hover { background: rgba(94,234,212,0.07); }
+
+        .summary-output {
+            display: none;
+            background: linear-gradient(135deg, rgba(94,234,212,0.05) 0%, rgba(147,197,253,0.05) 100%);
+            border: 2px solid rgba(94,234,212,0.3);
+            border-radius: 16px; padding: 1.5rem; margin-top: 1.5rem;
+            animation: slideUp 0.4s ease both;
+        }
+        .summary-output.show { display: block; }
+        .summary-output h4 { color: var(--deep-teal); margin-bottom: 1rem; font-size: 1.1rem; }
+        .summary-section {
+            background: white; border-radius: 12px; padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem; border-left: 3px solid var(--primary-teal);
+        }
+        .summary-section .ss-label { font-size: 0.78rem; font-weight: 700; color: var(--slate); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+        .summary-section .ss-text { color: var(--midnight); font-size: 0.97rem; }
+
+        /* Takeaways */
+        .takeaway-list { list-style: none; display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1.25rem; }
+        .takeaway-list li {
+            display: flex; align-items: flex-start; gap: 0.9rem;
+            padding: 1rem 1.2rem; background: white;
+            border-radius: 12px; border: 1px solid rgba(135,168,120,0.2);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.04);
+            transition: all 0.3s ease;
+        }
+        .takeaway-list li:hover { transform: translateX(4px); border-color: rgba(135,168,120,0.45); }
+        .takeaway-sym { color: var(--sage); font-size: 1.1rem; flex-shrink: 0; margin-top: 0.1rem; }
+
+        /* Checkout */
+        .checkout-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem; margin-top: 1.25rem;
+        }
+        .checkout-option {
+            background: white; border: 2px solid rgba(94,234,212,0.2);
+            border-radius: 14px; padding: 1.25rem; text-align: center;
+            cursor: pointer; transition: all 0.3s ease;
+        }
+        .checkout-option:hover, .checkout-option.selected {
+            border-color: var(--primary-teal);
+            box-shadow: 0 4px 18px rgba(94,234,212,0.2);
+            transform: translateY(-3px);
+        }
+        .checkout-option.selected { background: rgba(94,234,212,0.06); }
+        .checkout-sym { font-size: 1.8rem; margin-bottom: 0.5rem; display: block; }
+        .checkout-label { font-weight: 700; color: var(--midnight); margin-bottom: 0.25rem; font-size: 0.95rem; }
+        .checkout-desc { font-size: 0.85rem; color: var(--slate); }
+
+        .crisis-footer {
+            margin-top: 3rem; padding: 1.5rem 2rem;
+            background: white; border-radius: 16px;
+            border: 1px solid rgba(94,234,212,0.2);
+            text-align: center; font-size: 0.88rem; color: var(--slate);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        .crisis-footer strong { color: var(--midnight); }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .container { padding: 1rem; }
+            .card { padding: 1.5rem; }
+            .nav-pill { padding: 0.55rem 1.1rem; font-size: 0.85rem; }
+            .chain-visual { gap: 0; }
+            .chain-arrow { margin: 0; font-size: 0.9rem; }
+            .link-bubble { width: 50px; height: 50px; font-size: 1.1rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-shape bg-1"></div>
+    <div class="bg-shape bg-2"></div>
+    <div class="bg-shape bg-3"></div>
+
+    <div class="container">
+
+        <div class="header">
+            <div class="header-eyebrow">DBT — Adolescent Group</div>
+            <h1>Breaking Down the Chain</h1>
+            <p class="subtitle">Distress tolerance & understanding what leads to our hardest moments</p>
+        </div>
+
+        <div class="nav-pills">
+            <button class="nav-pill active" onclick="showPage(0, this)">Opening</button>
+            <button class="nav-pill" onclick="showPage(1, this)">The Chain</button>
+            <button class="nav-pill" onclick="showPage(2, this)">Discussion</button>
+            <button class="nav-pill" onclick="showPage(3, this)">Practice</button>
+            <button class="nav-pill" onclick="showPage(4, this)">My Chain</button>
+            <button class="nav-pill" onclick="showPage(5, this)">Closing</button>
+        </div>
+
+        <div class="phase-track" id="phaseDots">
+            <div class="phase-dot active" onclick="showPage(0)"></div>
+            <div class="phase-dot" onclick="showPage(1)"></div>
+            <div class="phase-dot" onclick="showPage(2)"></div>
+            <div class="phase-dot" onclick="showPage(3)"></div>
+            <div class="phase-dot" onclick="showPage(4)"></div>
+            <div class="phase-dot" onclick="showPage(5)"></div>
+        </div>
+
+        <!-- ======== PAGE 0: OPENING ======== -->
+        <div class="page active" id="page0">
+
+            <div class="card">
+                <h2>
+                    <div class="icon-circle icon-nature" aria-hidden="true">✦</div>
+                    Opening Check-In
+                    <span class="timing-badge">10 min</span>
+                </h2>
+
+                <p style="color:var(--slate); margin-bottom:1.25rem;">
+                    Passes are always okay — on any prompt, any time. You can share all three, just one, or simply say
+                    "I'm here." Fidgets, movement, cameras off — all welcome. This is your space.
+                </p>
+
+                <h3 style="color:var(--deep-teal); margin-bottom:1rem; font-size:1.1rem;">Rose, Bud & Thorn</h3>
+
+                <div class="rbt-grid">
+                    <div class="rbt-card rbt-rose">
+                        <span class="rbt-symbol">✿</span>
+                        <div class="rbt-label">Rose</div>
+                        <div class="rbt-desc">Something good, bright, or appreciated this week</div>
+                    </div>
+                    <div class="rbt-card rbt-bud">
+                        <span class="rbt-symbol">❀</span>
+                        <div class="rbt-label">Bud</div>
+                        <div class="rbt-desc">Something you're looking forward to or starting to grow</div>
+                    </div>
+                    <div class="rbt-card rbt-thorn">
+                        <span class="rbt-symbol">✧</span>
+                        <div class="rbt-label">Thorn</div>
+                        <div class="rbt-desc">Something that's been hard, frustrating, or heavy</div>
+                    </div>
+                </div>
+
+                <div class="topic-question">
+                    <div class="tq-label">+ Today's Topic Question</div>
+                    <p>"Think of a time you did something you later regretted when you were really overwhelmed. Not to judge it — just: was there a moment, looking back, where things started to go sideways?"</p>
+                </div>
+
+                <div class="pass-reminder">
+                    <span class="sym">◇</span>
+                    <div><strong>Passes are always welcome.</strong> If the question feels too heavy today, you can share just a rose, or simply say you're here.</div>
+                </div>
+            </div>
+
+            <div class="card earth">
+                <h2>
+                    <div class="icon-circle icon-earth" aria-hidden="true">≋</div>
+                    What We're Doing Today
+                    <span class="timing-badge">2 min</span>
+                </h2>
+                <p style="color:var(--slate); line-height:1.8; margin-bottom:1rem;">
+                    Today we're learning a DBT tool called <strong>chain analysis</strong> — but don't let that name scare you off.
+                    It's basically just a way of slowing down and looking at what actually happened, step by step, 
+                    when things got really hard.
+                </p>
+                <p style="color:var(--slate); line-height:1.8; margin-bottom:1rem;">
+                    Think of it like a detective investigation of your own mind. Not to blame yourself — but to actually 
+                    understand yourself, so you have more choices next time.
+                </p>
+                <p style="color:var(--slate); line-height:1.8;">
+                    We'll also connect this to <strong>distress tolerance</strong> — what it looks like when the distress gets 
+                    high, and where in the chain we might be able to use skills to change what happens next.
+                </p>
+            </div>
+
+            <div style="text-align:right;">
+                <button class="btn" onclick="showPage(1)">The Chain →</button>
+            </div>
+        </div>
+
+        <!-- ======== PAGE 1: THE CHAIN ======== -->
+        <div class="page" id="page1">
+
+            <div class="card">
+                <h2>
+                    <div class="icon-circle icon-calm" aria-hidden="true">◎</div>
+                    What Is a Chain Analysis?
+                    <span class="timing-badge">15 min</span>
+                </h2>
+
+                <p style="color:var(--slate); margin-bottom:1rem; line-height:1.8;">
+                    A chain analysis looks at how a difficult moment actually unfolded — not just "I blew up" or "I used a behavior," 
+                    but every single link that led there. Most of the time, big reactions didn't come out of nowhere. 
+                    They came from a whole bunch of small things stacking up.
+                </p>
+
+                <p style="color:var(--slate); margin-bottom:1.5rem; line-height:1.8;">
+                    Tap any link below to learn what it means and see a real teen example.
+                </p>
+
+                <!-- Interactive chain visual -->
+                <div class="chain-visual">
+                    <div class="chain-link" onclick="showLink('vuln')">
+                        <div class="link-bubble" style="border-color:rgba(253,164,175,0.5);">😴</div>
+                        <div class="link-label">Vulnerability</div>
+                    </div>
+                    <div class="chain-arrow">→</div>
+                    <div class="chain-link" onclick="showLink('prompt')">
+                        <div class="link-bubble" style="border-color:rgba(192,132,252,0.5);">⚡</div>
+                        <div class="link-label">Trigger</div>
+                    </div>
+                    <div class="chain-arrow">→</div>
+                    <div class="chain-link" onclick="showLink('thoughts')">
+                        <div class="link-bubble" style="border-color:rgba(147,197,253,0.5);">💭</div>
+                        <div class="link-label">Thoughts</div>
+                    </div>
+                    <div class="chain-arrow">→</div>
+                    <div class="chain-link" onclick="showLink('feelings')">
+                        <div class="link-bubble" style="border-color:rgba(94,234,212,0.5);">❤️</div>
+                        <div class="link-label">Feelings</div>
+                    </div>
+                    <div class="chain-arrow">→</div>
+                    <div class="chain-link" onclick="showLink('urge')">
+                        <div class="link-bubble" style="border-color:rgba(253,164,175,0.5);">🌊</div>
+                        <div class="link-label">Urge</div>
+                    </div>
+                    <div class="chain-arrow">→</div>
+                    <div class="chain-link" onclick="showLink('behavior')">
+                        <div class="link-bubble" style="border-color:rgba(192,132,252,0.5);">⚡</div>
+                        <div class="link-label">Behavior</div>
+                    </div>
+                    <div class="chain-arrow">→</div>
+                    <div class="chain-link" onclick="showLink('aftermath')">
+                        <div class="link-bubble" style="border-color:rgba(135,168,120,0.5);">🌱</div>
+                        <div class="link-label">Aftermath</div>
+                    </div>
+                </div>
+
+                <div id="linkDetail" style="display:none;"></div>
+            </div>
+
+            <!-- DT connection -->
+            <div class="card warm">
+                <h2>
+                    <div class="icon-circle icon-warm" aria-hidden="true">◈</div>
+                    Where Does Distress Tolerance Fit In?
+                </h2>
+                <p style="color:var(--slate); margin-bottom:1.25rem; line-height:1.8;">
+                    Distress tolerance skills are what you use when the distress gets really high and you're at risk of 
+                    doing something that makes things worse. In the chain, that moment is usually right around the <strong>urge</strong> — 
+                    after the feelings have peaked but before the behavior happens.
+                </p>
+
+                <div class="psych-grid">
+                    <div class="psych-card">
+                        <div class="psych-header" onclick="togglePsych(this)">
+                            <div class="psych-header-left">
+                                <div class="psych-symbol teal">◈</div>
+                                <div class="psych-title">TIPP Skills — Body First</div>
+                            </div>
+                            <button class="psych-toggle" tabindex="-1">+</button>
+                        </div>
+                        <div class="psych-body">
+                            <p>When emotions are at a 9 or 10, your thinking brain goes offline. TIPP works directly on your body to bring the intensity down fast:</p>
+                            <ul>
+                                <li><strong>Temperature</strong> — cold water on face, ice, cold shower</li>
+                                <li><strong>Intense exercise</strong> — sprint, jumping jacks, anything that burns the energy</li>
+                                <li><strong>Paced breathing</strong> — exhale longer than inhale (4 in, 6-8 out)</li>
+                                <li><strong>Paired muscle relaxation</strong> — tense and release muscle groups</li>
+                            </ul>
+                            <div style="margin-top:0.75rem; background:white; border-radius:10px; padding:0.85rem; font-size:0.9rem; border-left:3px solid var(--primary-teal);">
+                                <strong>Teen example:</strong> "I wanted to send a really mean text. I held ice cubes for 30 seconds first. By the time the cold wore off, I didn't want to send it anymore."
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="psych-card">
+                        <div class="psych-header" onclick="togglePsych(this)">
+                            <div class="psych-header-left">
+                                <div class="psych-symbol purple">◭</div>
+                                <div class="psych-title">ACCEPTS — Distract With Purpose</div>
+                            </div>
+                            <button class="psych-toggle" tabindex="-1">+</button>
+                        </div>
+                        <div class="psych-body">
+                            <p>Distraction isn't avoidance — it's buying time for your nervous system to settle. ACCEPTS gives you categories to work with:</p>
+                            <ul>
+                                <li><strong>Activities</strong> — anything absorbing (game, show, art)</li>
+                                <li><strong>Contributing</strong> — do something for someone else</li>
+                                <li><strong>Comparisons</strong> — remember harder times you've survived</li>
+                                <li><strong>Emotions</strong> — shift with a different feeling (funny video)</li>
+                                <li><strong>Push away</strong> — mentally set it aside for now</li>
+                                <li><strong>Thoughts</strong> — count, do math, recite something</li>
+                                <li><strong>Sensations</strong> — strong sensation that isn't harmful</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="psych-card">
+                        <div class="psych-header" onclick="togglePsych(this)">
+                            <div class="psych-header-left">
+                                <div class="psych-symbol rose">✿</div>
+                                <div class="psych-title">Self-Soothe — The 5 Senses</div>
+                            </div>
+                            <button class="psych-toggle" tabindex="-1">+</button>
+                        </div>
+                        <div class="psych-body">
+                            <p>When you're distressed, comfort through the senses can shift your state quickly and gently:</p>
+                            <ul>
+                                <li><strong>Vision</strong> — something beautiful, calming, or meaningful to look at</li>
+                                <li><strong>Hearing</strong> — music that matches or shifts your mood</li>
+                                <li><strong>Smell</strong> — lotion, candle, something that feels safe</li>
+                                <li><strong>Taste</strong> — something warm, cold, sweet, or comforting</li>
+                                <li><strong>Touch</strong> — soft blanket, weighted object, pet, warm shower</li>
+                            </ul>
+                            <div style="margin-top:0.75rem; background:white; border-radius:10px; padding:0.85rem; font-size:0.9rem; border-left:3px solid var(--warm-rose);">
+                                <strong>The idea:</strong> You can't be in a soothed state and a crisis state at the same time.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="psych-card">
+                        <div class="psych-header" onclick="togglePsych(this)">
+                            <div class="psych-header-left">
+                                <div class="psych-symbol sage">◆</div>
+                                <div class="psych-title">Radical Acceptance — Stop Fighting Reality</div>
+                            </div>
+                            <button class="psych-toggle" tabindex="-1">+</button>
+                        </div>
+                        <div class="psych-body">
+                            <p>Radical acceptance isn't agreeing that something is okay — it's stopping the fight against what's already true. Fighting reality keeps pain alive longer.</p>
+                            <ul>
+                                <li>"This is painful, and it's real, and I can survive it"</li>
+                                <li>"I can't control what happened — only what I do now"</li>
+                                <li>"Accepting this doesn't mean I like it or it's fair"</li>
+                                <li>Notice the urge to fight reality — then let it go</li>
+                            </ul>
+                            <div style="margin-top:0.75rem; background:white; border-radius:10px; padding:0.85rem; font-size:0.9rem; border-left:3px solid var(--sage);">
+                                <strong>Teen example:</strong> "My friend cancelled. I was furious. But when I stopped telling myself it shouldn't have happened, the anger actually dropped."
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                <button class="btn btn-secondary" onclick="showPage(0)">← Opening</button>
+                <button class="btn" onclick="showPage(2)">Discussion →</button>
+            </div>
+        </div>
+
+        <!-- ======== PAGE 2: DISCUSSION ======== -->
+        <div class="page" id="page2">
+
+            <div class="card warm">
+                <h2>
+                    <div class="icon-circle icon-warm" aria-hidden="true">✦</div>
+                    Group Discussion
+                    <span class="timing-badge">12–15 min</span>
+                </h2>
+
+                <p style="color:var(--slate); margin-bottom:0.5rem;">
+                    Follow the group's energy — one real conversation beats rushing through all of these.
+                </p>
+                <div class="pass-reminder" style="margin-bottom:1.5rem;">
+                    <span class="sym">◇</span>
+                    <div>Passes are always okay. Listening and being present counts.</div>
+                </div>
+
+                <div class="discussion-stack">
+                    <div class="disc-question">
+                        <div class="disc-q-label">Connecting to Experience</div>
+                        <div class="disc-q-text">When you're really distressed, what do you usually notice first — is it more in your body, your thoughts, or your emotions? Or something else?</div>
+                    </div>
+                    <div class="disc-question">
+                        <div class="disc-q-label">The Vulnerability Factor</div>
+                        <div class="disc-q-text">What makes you more likely to react strongly to things? (sleep, hunger, certain situations, being around specific people, certain times of day or year?)</div>
+                    </div>
+                    <div class="disc-question">
+                        <div class="disc-q-label">The Urge Moment</div>
+                        <div class="disc-q-text">What does it feel like right before you do something you later regret — is there a moment you can actually feel? What does the urge feel like in your body?</div>
+                    </div>
+                    <div class="disc-question">
+                        <div class="disc-q-label">Distress Tolerance</div>
+                        <div class="disc-q-text">Has anything ever actually helped in those really hard moments — even just a little? What's worked, what hasn't, and what gets in the way of using skills when you need them most?</div>
+                    </div>
+                    <div class="disc-question">
+                        <div class="disc-q-label">Looking at the Chain</div>
+                        <div class="disc-q-text">If you could go back to one moment in a hard situation and do something differently, where in the chain would that be — and what might you do?</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                <button class="btn btn-secondary" onclick="showPage(1)">← The Chain</button>
+                <button class="btn" onclick="showPage(3)">Practice →</button>
+            </div>
+        </div>
+
+        <!-- ======== PAGE 3: PRACTICE SCENARIOS ======== -->
+        <div class="page" id="page3">
+
+            <div class="card">
+                <h2>
+                    <div class="icon-circle icon-nature" aria-hidden="true">◈</div>
+                    Practice Scenarios
+                    <span class="timing-badge">12–15 min</span>
+                </h2>
+
+                <p style="color:var(--slate); margin-bottom:0.75rem; line-height:1.7;">
+                    We'll look at real situations together — the kind that come up all the time for teenagers. 
+                    For each one, we'll map the chain and figure out where distress tolerance skills could have changed what happened.
+                </p>
+
+                <div class="pass-reminder" style="margin-bottom:1.5rem;">
+                    <span class="sym">◇</span>
+                    <div>React, problem-solve, or just listen. No pressure to share personal examples unless you want to.</div>
+                </div>
+
+                <div id="scenarioDisplay" style="margin-bottom:1.5rem;"></div>
+
+                <div class="scenario-nav">
+                    <button class="btn btn-secondary" onclick="prevScenario()" id="prevBtn" style="opacity:0.4; pointer-events:none;">← Previous</button>
+                    <div style="text-align:center;">
+                        <span id="cardCounter" style="font-size:0.9rem; color:var(--slate); font-weight:600;"></span>
+                        <div id="scenarioDots" style="display:flex; gap:0.4rem; justify-content:center; margin-top:0.5rem;"></div>
+                    </div>
+                    <button class="btn" onclick="nextScenario()" id="nextBtn">Next →</button>
+                </div>
+            </div>
+
+            <div class="card earth">
+                <h2>
+                    <div class="icon-circle icon-earth" aria-hidden="true">✦</div>
+                    Mapping the Chain Together
+                </h2>
+                <div class="discussion-stack">
+                    <div class="disc-question">
+                        <div class="disc-q-label">What Are the Links</div>
+                        <div class="disc-q-text">What vulnerability factors do you see? What was the trigger? What feelings and thoughts were probably happening along the way?</div>
+                    </div>
+                    <div class="disc-question">
+                        <div class="disc-q-label">The Critical Moment</div>
+                        <div class="disc-q-text">Where in the chain did the urge hit its peak — where was the point of no return? What was happening right before the behavior?</div>
+                    </div>
+                    <div class="disc-question">
+                        <div class="disc-q-label">Where Could Skills Help</div>
+                        <div class="disc-q-text">Which distress tolerance skill — TIPP, ACCEPTS, self-soothe, or radical acceptance — could have helped at that moment? What would using it have looked like?</div>
+                    </div>
+                    <div class="disc-question">
+                        <div class="disc-q-label">Real Talk</div>
+                        <div class="disc-q-text">Does this feel familiar? Is there anything about this scenario that makes it feel impossible — and what would it actually take to do something different?</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                <button class="btn btn-secondary" onclick="showPage(2)">← Discussion</button>
+                <button class="btn" onclick="showPage(4)">My Chain →</button>
+            </div>
+        </div>
+
+        <!-- ======== PAGE 4: MY CHAIN BUILDER ======== -->
+        <div class="page" id="page4">
+
+            <div class="card calm">
+                <h2>
+                    <div class="icon-circle icon-calm" aria-hidden="true">◭</div>
+                    Build Your Own Chain
+                    <span class="timing-badge">Individual tool</span>
+                </h2>
+
+                <p style="color:var(--slate); margin-bottom:0.5rem; line-height:1.7;">
+                    Think of a recent moment when your distress got really high — and you either used a skill, or wish you had.
+                    Walk through the links below. You don't need to share this with anyone.
+                </p>
+
+                <div class="pass-reminder" style="margin:1rem 0 1.5rem;">
+                    <span class="sym">◇</span>
+                    <div>This is completely optional and private. Skip it and just use the closing if today isn't the right time.</div>
+                </div>
+
+                <div class="chain-builder">
+
+                    <div class="builder-step">
+                        <div class="builder-label">
+                            <div class="step-badge s1">1</div>
+                            What was your vulnerability that day? (tired, hungry, already stressed, had a hard week...)
+                        </div>
+                        <textarea id="b-vuln" placeholder="e.g. I hadn't slept much. I'd already had a rough day at school. I was hungry..."></textarea>
+                    </div>
+
+                    <div class="builder-step">
+                        <div class="builder-label">
+                            <div class="step-badge s2">2</div>
+                            What was the trigger — the thing that actually set it off?
+                        </div>
+                        <textarea id="b-trigger" placeholder="e.g. My mom said something. I saw a text. I didn't get invited to something..."></textarea>
+                    </div>
+
+                    <div class="builder-step">
+                        <div class="builder-label">
+                            <div class="step-badge s3">3</div>
+                            What happened in the middle? (thoughts, feelings, body sensations, the urge building...)
+                        </div>
+                        <textarea id="b-middle" placeholder="e.g. I thought 'no one cares about me.' My chest felt tight. I started spiraling. The urge to [behavior] got really strong..."></textarea>
+                    </div>
+
+                    <div class="builder-step">
+                        <div class="builder-label">
+                            <div class="step-badge s4">4</div>
+                            What did you do? (the behavior — be honest, no judgment here)
+                        </div>
+                        <textarea id="b-behavior" placeholder="e.g. I yelled at my mom. I self-harmed. I sent a mean message. I went numb and shut down..."></textarea>
+                    </div>
+
+                    <div class="builder-step">
+                        <div class="builder-label">
+                            <div class="step-badge s5">5</div>
+                            What happened after? And — where in this chain could a skill have helped?
+                        </div>
+                        <textarea id="b-after" placeholder="e.g. I felt ashamed after. If I'd used TIPP when I felt my chest tighten, I think the urge might have dropped before I said anything..."></textarea>
+                    </div>
+
+                    <div style="text-align:center; margin-top:1.5rem;">
+                        <button class="btn" onclick="generateSummary()">See My Chain Summary</button>
+                        <button class="btn btn-secondary" onclick="clearChain()">Start Over</button>
+                    </div>
+
+                    <div class="summary-output" id="summaryOutput">
+                        <h4>Your Chain</h4>
+                        <div id="summaryContent"></div>
+                        <p style="margin-top:1rem; font-size:0.9rem; color:var(--slate); font-style:italic;">
+                            You just did a real chain analysis. That takes guts. You can keep this, share it with your therapist, 
+                            or just let it inform what skills you want to practice next.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                <button class="btn btn-secondary" onclick="showPage(3)">← Practice</button>
+                <button class="btn" onclick="showPage(5)">Closing →</button>
+            </div>
+        </div>
+
+        <!-- ======== PAGE 5: CLOSING ======== -->
+        <div class="page" id="page5">
+
+            <div class="card">
+                <h2>
+                    <div class="icon-circle icon-nature" aria-hidden="true">◇</div>
+                    Key Takeaways
+                    <span class="timing-badge">5 min</span>
+                </h2>
+
+                <ul class="takeaway-list">
+                    <li>
+                        <span class="takeaway-sym">◆</span>
+                        <div><strong>Big reactions don't come from nowhere.</strong> They're a chain — and every chain has links where something could change.</div>
+                    </li>
+                    <li>
+                        <span class="takeaway-sym">◆</span>
+                        <div><strong>Vulnerability is real.</strong> When you're already running low — on sleep, food, safety, or connection — your threshold drops. That's not weakness, it's biology.</div>
+                    </li>
+                    <li>
+                        <span class="takeaway-sym">◆</span>
+                        <div><strong>The urge is not the behavior.</strong> There's a moment between "I want to do this" and actually doing it. That gap is where distress tolerance skills live.</div>
+                    </li>
+                    <li>
+                        <span class="takeaway-sym">◆</span>
+                        <div><strong>Chain analysis isn't about blame.</strong> It's about understanding yourself clearly enough to have more choices next time.</div>
+                    </li>
+                    <li>
+                        <span class="takeaway-sym">◆</span>
+                        <div><strong>TIPP, ACCEPTS, self-soothe, and radical acceptance are tools.</strong> They work best when you know which link in your chain they fit.</div>
+                    </li>
+                    <li>
+                        <span class="takeaway-sym">◆</span>
+                        <div><strong>You don't have to be in crisis to use these skills.</strong> The earlier in the chain, the easier they work.</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card warm">
+                <h2>
+                    <div class="icon-circle icon-warm" aria-hidden="true">✦</div>
+                    Closing Check-Out
+                    <span class="timing-badge">5–7 min</span>
+                </h2>
+
+                <p style="color:var(--slate); margin-bottom:1.25rem;">
+                    We'll go around once more. Share your name and one of the following — or pass:
+                </p>
+
+                <div class="checkout-options">
+                    <div class="checkout-option" onclick="selectCheckout(this)">
+                        <span class="checkout-sym">✦</span>
+                        <div class="checkout-label">One word</div>
+                        <div class="checkout-desc">How you're leaving group today</div>
+                    </div>
+                    <div class="checkout-option" onclick="selectCheckout(this)">
+                        <span class="checkout-sym">◈</span>
+                        <div class="checkout-label">One thing</div>
+                        <div class="checkout-desc">You're taking away from today</div>
+                    </div>
+                    <div class="checkout-option" onclick="selectCheckout(this)">
+                        <span class="checkout-sym">◆</span>
+                        <div class="checkout-label">One link</div>
+                        <div class="checkout-desc">In your chain you want to work on</div>
+                    </div>
+                    <div class="checkout-option" onclick="selectCheckout(this)">
+                        <span class="checkout-sym">◇</span>
+                        <div class="checkout-label">Pass</div>
+                        <div class="checkout-desc">"I'm here, and that's enough"</div>
+                    </div>
+                </div>
+
+                <div class="pass-reminder" style="margin-top:1.5rem;">
+                    <span class="sym">◇</span>
+                    <div>
+                        <strong>Facilitator closing:</strong> You showed up today and did some real work. 
+                        Understanding your own patterns — without judgment — is one of the most important things you can do for yourself. 
+                        See you next time.
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                <button class="btn btn-secondary" onclick="showPage(4)">← My Chain</button>
+                <button class="btn" onclick="showPage(0)">Start Over ↺</button>
+            </div>
+        </div>
+
+        <div class="crisis-footer">
+            <strong>Support is always available.</strong>
+            If you're struggling right now, please reach out to your treatment team or a trusted adult.
+            Crisis Text Line: <strong>Text HOME to 741741</strong> &nbsp;|&nbsp;
+            988 Suicide & Crisis Lifeline: <strong>Call or text 988</strong>
+        </div>
+
+    </div>
+
+    <script>
+        // ---- Navigation ----
+        function showPage(index, btn) {
+            document.querySelectorAll('.page').forEach((p, i) => p.classList.toggle('active', i === index));
+            if (btn) {
+                document.querySelectorAll('.nav-pill').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+            } else {
+                document.querySelectorAll('.nav-pill').forEach((p, i) => p.classList.toggle('active', i === index));
+            }
+            document.querySelectorAll('.phase-dot').forEach((d, i) => {
+                d.classList.remove('active', 'done');
+                if (i === index) d.classList.add('active');
+                else if (i < index) d.classList.add('done');
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ---- Chain link detail ----
+        const linkData = {
+            vuln: {
+                title: "Vulnerability Factors",
+                desc: "These are the things that lower your 'stress threshold' before anything even happens. When you're already depleted, the same trigger hits way harder.",
+                example: "Jordan hadn't slept properly in days and skipped lunch. On a normal day, a friend's comment would have rolled off. Today it landed like an attack."
+            },
+            prompt: {
+                title: "The Trigger (Prompting Event)",
+                desc: "The specific thing that started the chain. Can be tiny — a text, a look, a tone of voice. It doesn't have to be 'big enough' to explain the reaction. It's just where the chain got activated.",
+                example: "A friend read Jordan's message and didn't reply for three hours."
+            },
+            thoughts: {
+                title: "Thoughts",
+                desc: "The stories, interpretations, and predictions your brain starts running. Often happen fast and automatically — 'they hate me,' 'I always mess this up,' 'no one cares.'",
+                example: "'She's ignoring me on purpose. I must have done something wrong. She probably doesn't want to be my friend anymore.'"
+            },
+            feelings: {
+                title: "Feelings & Body Sensations",
+                desc: "Emotions and what's happening in your body. These often come in waves — first hurt, then anxiety, then anger. Noticing them early is where skills can interrupt the chain.",
+                example: "Chest tightening. Stomach dropping. A wave of sadness, then growing anger. Tears threatening."
+            },
+            urge: {
+                title: "The Urge",
+                desc: "The strong pull toward a behavior — often to escape the pain, to feel something different, or to make the other person feel what you feel. This is usually the highest-intensity moment in the chain.",
+                example: "Urgent need to send a confrontational message, to self-harm, or to shut down completely and go numb."
+            },
+            behavior: {
+                title: "The Behavior",
+                desc: "What actually happened. Described clearly, without judgment — this is information, not evidence of being broken or bad.",
+                example: "Jordan sent a series of hurt, angry texts. Then immediately felt shame and regret."
+            },
+            aftermath: {
+                title: "Aftermath & Consequences",
+                desc: "What happened next — short-term and long-term. Both for you and for the people around you. Often includes shame, damage to the relationship, and sometimes a temporary sense of relief.",
+                example: "Friend responded defensively. The friendship feels shaky now. Jordan feels terrible about the messages and less trusting of herself."
+            }
+        };
+
+        function showLink(key) {
+            const d = linkData[key];
+            document.getElementById('linkDetail').style.display = 'block';
+            document.getElementById('linkDetail').innerHTML = `
+                <div class="link-detail-box">
+                    <h4>${d.title}</h4>
+                    <p>${d.desc}</p>
+                    <div class="teen-example"><strong>Example:</strong> ${d.example}</div>
+                </div>`;
+            document.getElementById('linkDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // ---- Psych toggle ----
+        function togglePsych(header) {
+            const body = header.nextElementSibling;
+            const toggle = header.querySelector('.psych-toggle');
+            const isOpen = body.classList.contains('open');
+            body.classList.toggle('open', !isOpen);
+            toggle.classList.toggle('open', !isOpen);
+        }
+
+        // ---- Scenarios ----
+        const scenarios = [
+            {
+                context: "With Friends",
+                symbol: "◈",
+                color: "teal",
+                title: "The Group Chat",
+                situation: "Riley woke up already exhausted and anxious about a test. After school, she checked her phone and saw her friend group had made plans without her. She spent an hour doom-scrolling, convinced everyone hated her — then sent a series of accusatory messages to the group chat. By the time people responded confused and hurt, the damage was done.",
+                hint: "Sleep deprivation as vulnerability, assumptions vs. facts, the urge to confront vs. ACCEPTS distraction"
+            },
+            {
+                context: "With Family",
+                symbol: "◭",
+                color: "purple",
+                title: "The Argument That Escalated",
+                situation: "Marcus had already had a hard week. His parent commented on his grades at dinner in front of the whole family. He felt humiliated. His thoughts raced to 'they never believe in me.' Within minutes the conversation became a full screaming match and he slammed his door so hard it left a mark. Now he's grounded.",
+                hint: "Public shame as trigger, thoughts racing, TIPP for physical intensity, where radical acceptance could fit"
+            },
+            {
+                context: "At School",
+                symbol: "✿",
+                color: "rose",
+                title: "The Panic Before the Presentation",
+                situation: "Sofia has been anxious all week about a class presentation. The morning of, she barely ate. When her name was called, she froze completely — then said she felt sick and walked out of class. Now she has to make it up under worse conditions and feels humiliated in front of her classmates.",
+                hint: "Hunger and anxiety as vulnerability, avoidance as short-term relief with long-term cost, paced breathing as a tool"
+            },
+            {
+                context: "Online",
+                symbol: "◆",
+                color: "sage",
+                title: "The Late Night Spiral",
+                situation: "Kai was already feeling low. They made the mistake of checking social media at midnight and saw photos from a party they weren't invited to. The spiral started — comparison, worthlessness, then a string of self-destructive decisions that lasted until 3am. The next day was a write-off.",
+                hint: "Time of day as vulnerability, social media as trigger, self-soothe alternatives, radical acceptance of not being included"
+            },
+            {
+                context: "Internal",
+                symbol: "≋",
+                color: "blue",
+                title: "The Quiet Shutdown",
+                situation: "Alex doesn't explode outwardly — they go quiet. After a conflict with a close friend, they smiled and said everything was fine. Inside they were shutting down. By evening they couldn't make themselves eat, respond to texts, or do homework. They lay in bed feeling numb for hours, telling themselves they didn't care about anything.",
+                hint: "Emotional suppression as behavior, numbness as distress, reaching out vs. isolation, vulnerability of unresolved conflict"
+            }
+        ];
+
+        let currentScenario = 0;
+
+        function renderScenario() {
+            const s = scenarios[currentScenario];
+            const colorMap = { teal: 'rgba(94,234,212,0.12)', purple: 'rgba(192,132,252,0.12)', rose: 'rgba(253,164,175,0.12)', sage: 'rgba(135,168,120,0.12)', blue: 'rgba(147,197,253,0.12)' };
+            const borderMap = { teal: 'rgba(94,234,212,0.35)', purple: 'rgba(192,132,252,0.35)', rose: 'rgba(253,164,175,0.45)', sage: 'rgba(135,168,120,0.4)', blue: 'rgba(147,197,253,0.45)' };
+
+            document.getElementById('scenarioDisplay').innerHTML = `
+                <div style="background:${colorMap[s.color]}; border:2px solid ${borderMap[s.color]}; border-radius:18px; padding:1.75rem; animation: slideUp 0.35s ease both;">
+                    <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem; flex-wrap:wrap;">
+                        <span style="font-size:0.78rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--slate); background:white; padding:0.3rem 0.9rem; border-radius:50px; border:1px solid rgba(0,0,0,0.08);">${s.context}</span>
+                        <span style="font-size:1.5rem; color:var(--deep-teal);">${s.symbol}</span>
+                    </div>
+                    <h3 style="color:var(--midnight); font-size:1.25rem; font-weight:700; margin-bottom:0.9rem;">${s.title}</h3>
+                    <p style="color:var(--slate); line-height:1.8; margin-bottom:1rem;">${s.situation}</p>
+                    <div style="background:white; border-radius:10px; padding:0.8rem 1rem; font-size:0.88rem; color:var(--warm-gray);">
+                        <strong style="color:var(--deep-teal);">Chain themes:</strong> ${s.hint}
+                    </div>
+                </div>`;
+
+            document.getElementById('cardCounter').textContent = `Scenario ${currentScenario + 1} of ${scenarios.length}`;
+            document.getElementById('scenarioDots').innerHTML = scenarios.map((_, i) =>
+                `<div style="width:8px;height:8px;border-radius:50%;background:${i===currentScenario?'var(--deep-teal)':'rgba(94,234,212,0.25)'};transition:all 0.3s;cursor:pointer;" onclick="jumpScenario(${i})"></div>`
+            ).join('');
+
+            document.getElementById('prevBtn').style.opacity = currentScenario === 0 ? '0.4' : '1';
+            document.getElementById('prevBtn').style.pointerEvents = currentScenario === 0 ? 'none' : 'auto';
+            document.getElementById('nextBtn').textContent = currentScenario === scenarios.length - 1 ? 'Done ✓' : 'Next →';
+        }
+
+        function nextScenario() { if (currentScenario < scenarios.length - 1) { currentScenario++; renderScenario(); } }
+        function prevScenario() { if (currentScenario > 0) { currentScenario--; renderScenario(); } }
+        function jumpScenario(i) { currentScenario = i; renderScenario(); }
+
+        // ---- Chain builder ----
+        function generateSummary() {
+            const vuln = document.getElementById('b-vuln').value.trim();
+            const trigger = document.getElementById('b-trigger').value.trim();
+            const middle = document.getElementById('b-middle').value.trim();
+            const behavior = document.getElementById('b-behavior').value.trim();
+            const after = document.getElementById('b-after').value.trim();
+
+            if (!trigger || !behavior) {
+                alert('Please fill in at least the trigger and the behavior to build your chain.');
+                return;
+            }
+
+            const sections = [
+                { label: '😴 Vulnerability', text: vuln || 'Not filled in — worth thinking about.' },
+                { label: '⚡ Trigger', text: trigger },
+                { label: '💭 The Middle (thoughts, feelings, urge)', text: middle || 'Not filled in.' },
+                { label: '⚡ Behavior', text: behavior },
+                { label: '🌱 Aftermath & Skill Opportunity', text: after || 'Not filled in.' }
+            ];
+
+            document.getElementById('summaryContent').innerHTML = sections.map(s => `
+                <div class="summary-section">
+                    <div class="ss-label">${s.label}</div>
+                    <div class="ss-text">${s.text}</div>
+                </div>`).join('');
+
+            const output = document.getElementById('summaryOutput');
+            output.classList.add('show');
+            output.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearChain() {
+            ['b-vuln', 'b-trigger', 'b-middle', 'b-behavior', 'b-after'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('summaryOutput').classList.remove('show');
+        }
+
+        function selectCheckout(el) {
+            document.querySelectorAll('.checkout-option').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        window.addEventListener('load', () => {
+            renderScenario();
+        });
+    </script>
+</body>
+</html>
